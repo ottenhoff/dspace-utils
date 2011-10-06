@@ -2,11 +2,15 @@
 set_time_limit(0);
 
 require_once 'XML/Serializer.php';
-require_once 'PHP/Compat.php';
-require_once 'PHP/Compat/Function/file_put_contents.php';
+
+if (floatval(phpversion()) < 5.0) {
+  require_once 'PHP/Compat.php';
+  require_once 'PHP/Compat/Function/file_put_contents.php';
+}
 
 $err = "";
-global $err;
+$badFiles = array();
+global $err, $badFiles;
 
 $commandsToRun = array();
 $out = array();
@@ -38,6 +42,7 @@ $columns = array();
 $count = 0;
 
 while (($data = fgetcsv($handle, 10000, ",")) !== FALSE) {
+  sleep(1);
 
 	if($count == 0) {
 		$columns = $data; // assign the column names
@@ -167,14 +172,29 @@ foreach ($commandsToRun AS $key => $val) {
 }
 file_put_contents("commands.sh", $c);
 
+if (count($badFiles) > 0) {
+  file_put_contents("badfiles.txt", implode("\n", $badFiles));
+}
+
 
 function moveFilesToImportDir($files, $assetDir, $dir) {
-	global $err;
+	global $err, $badFiles;
 	
 	foreach($files AS $filename) {
 		if(!file_exists($assetDir . "/" . $filename)) {
-			$err .= "Bad file: " . $assetDir . "/" . $filename . "\n";
-			continue;
+
+      $filename = str_replace('\\', '/', $filename);
+      if (strpos($filename, '/') !== FALSE) {
+        $tt = explode('/', $filename);
+        $filename = array_pop($tt);
+      }
+
+      if(!file_exists($assetDir . "/" . $filename)) {
+			  $err .= "Bad file: " . $assetDir . "/" . $filename . "\n";
+        echo  "Bad file: " . $assetDir . "/" . $filename . "\n";
+        $badFiles[] = $filename;
+			  continue;
+      }
 		}
 
 		$targetFile = $filename;
