@@ -54,7 +54,7 @@ while (($data = fgetcsv($handle, 10000, ",")) !== FALSE) {
 		
 		$cnt = count($data);
 
-		$commands = array('collection id', 'item owner', 'file location', 'pdf');
+		$commands = array('collection id', 'item owner', 'file location', 'file', 'pdf');
 
 		for($z = 0; $z < $cnt; $z++) {
 			if(empty($data[$z])) {
@@ -75,6 +75,7 @@ while (($data = fgetcsv($handle, 10000, ",")) !== FALSE) {
 						break;
 
 					case "file location":
+					case "file":
 					case "pdf":
 						$fileNames[] = trim($data[$z]);
 						break;

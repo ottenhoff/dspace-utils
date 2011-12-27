@@ -1,0 +1,3 @@
+Utility that converts batch uploads in CSV format to a DSpace-specific batch import format.
+
+Please supply a CSV filename to load, a directory to place the files, and the contents directory as command arguments
