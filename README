@@ -7,3 +7,10 @@ csv-to-dspace-xml.php: converts batch uploads in CSV format to a DSpace-specific
 move-items-to-different-collection.php: moves items from one collection to another
 
 export-many-collections.php: simple utility to export many collections at once
+
+export-collection-bitstreams-to-folder.php: export all non-filter and non-license bitstreams to a designated folder
+  -- ./export-collection-bitstreams-to-folder.php "host=192.168.2.46 port=5432 dbname=dspace user=dspace pass=dspace" 567
+
+export-collection-metadata-to-csv.php: export collection metadata to a CSV file. Multiple values get separated by a pipe.
+  -- ./export-collection-metadata-to-csv.php "host=192.168.2.46 port=5432 dbname=dspace user=dspace" 567 /tmp/export.csv
+
