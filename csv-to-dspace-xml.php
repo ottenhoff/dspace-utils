@@ -54,27 +54,32 @@ while (($data = fgetcsv($handle, 10000, ",")) !== FALSE) {
 		
 		$cnt = count($data);
 
-		$commands = array('collection id', 'item owner', 'file location', 'file', 'pdf');
+		$commands = array('collection id', 'collection', 'item owner', 'file location', 'file', 'pdf', 'identifier');
 
 		for($z = 0; $z < $cnt; $z++) {
+			// clean up the user's column name
+			$columns[$z] = strtolower(trim(str_replace("*","",$columns[$z])));
+
 			if(empty($data[$z])) {
 				
 			} 
 			elseif(in_array(trim(strtolower($columns[$z])), $commands)) {
 				
-				switch(trim(strtolower($columns[$z]))) {
+				switch($columns[$z]) {
 
 					case "item owner":
 						$cmdArr['owner'] = $data[$z];
 						break;
 
 					case "collection id":
+					case "collection":
 						if (!isset($cmdArr['coll'])) { // do not overwrite previous 
 							$cmdArr['coll'] = $data[$z];
 						}
 						break;
 
 					case "file location":
+					case "identifier":
 					case "file":
 					case "pdf":
 						$fileNames[] = trim($data[$z]);
@@ -135,7 +140,12 @@ while (($data = fgetcsv($handle, 10000, ",")) !== FALSE) {
 		$destination_dir = $dir;
 		$command_dir = $dir;
 
-		if (eregi("/", $cmdArr['coll'])) {
+		if (empty($cmdArr['coll'])) {
+			echo "skipping row because no collection defined \n\n";
+			continue;
+		}
+
+		if (strpos($cmdArr['coll'], "/") !== FALSE) {
 			$tmp = explode("/", $cmdArr['coll']);
 			$tmp2 = array_pop($tmp);
 
@@ -153,7 +163,6 @@ while (($data = fgetcsv($handle, 10000, ",")) !== FALSE) {
 		file_put_contents($destination_dir . "/dublin_core.xml", $dc_xml);
 		file_put_contents($destination_dir . "/contents", $contents);
 
-		var_dump($fileNames);
 		moveFilesToImportDir($fileNames, $assets, $destination_dir);
 
 		$command = createCommand($cmdArr, $command_dir) . "\n";
@@ -190,11 +199,16 @@ function moveFilesToImportDir($files, $assetDir, $dir) {
         $filename = array_pop($tt);
       }
 
+      // try adding pdf to end of filename
       if(!file_exists($assetDir . "/" . $filename)) {
-			  $err .= "Bad file: " . $assetDir . "/" . $filename . "\n";
+          $filename .= '.pdf';
+      }
+
+      if(!file_exists($assetDir . "/" . $filename)) {
+		$err .= "Bad file: " . $assetDir . "/" . $filename . "\n";
         echo  "Bad file: " . $assetDir . "/" . $filename . "\n";
         $badFiles[] = $filename;
-			  continue;
+		continue;
       }
 		}
 
