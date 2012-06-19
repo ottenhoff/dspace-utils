@@ -64,8 +64,11 @@ for ($j = 0; $j < $i; $j++) {
 while ($row = pg_fetch_row ($res)) {
   $z = array();
 
+  // logo bitsream id
+  $row[4] = null;
+
   foreach ($row AS $r) {
-    $z[] = $r;
+    $z[] = pg_escape_string ($new, $r);
   }
 
   $out[] = "INSERT INTO community (" . implode (",", $fields) . ") VALUES ('" . implode ("','", $z) . "');";
@@ -115,8 +118,17 @@ for ($j = 0; $j < $i; $j++) {
 while ($row = pg_fetch_row ($res)) {
   $z = array();
 
+  // null out the workflow steps so no contraint errors
+  $row[4] = null;
+  $row[5] = null;
+  $row[10] = null;
+  $row[11] = null;
+  $row[12] = null;
+  $row[13] = null;
+  $row[14] = null;
+
   foreach ($row AS $r) {
-    $z[] = $r;
+    $z[] = pg_escape_string ($new, $r);
   }
 
   $out[] = "INSERT INTO collection (" . implode (",", $fields) . ") VALUES ('" . implode ("','", $z) . "');";
@@ -160,5 +172,8 @@ foreach ($collections AS $id) {
 }
   
 foreach ($out AS $line) {
-  print $line . "\n";
+  $line = str_replace ("''", 'null', $line);
+
+  $ret = pg_query ($new, $line);
+  print $line . "::" . $ret . "\n";
 }

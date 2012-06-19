@@ -2,7 +2,7 @@
 <?php
 
 if (count($argv) !== 4) {
-  exit("Bad number of arguments. Please supply database string, collection id, DSpace asset path, destination path\n\n");
+  exit("Bad number of arguments. Please supply database string, collection id, destination CSV\n\n");
 }
 
 
@@ -18,13 +18,15 @@ if (!$conn) {
 
 $fp = fopen($dest_csv, 'w');
 
+$collections = "706";
+
 $sql = "select mv.item_id, mf.element, mf.qualifier, mv.text_value, c.name AS collection_name
 from metadatavalue mv
 inner join metadatafieldregistry mf ON mv.metadata_field_id=mf.metadata_field_id
 inner join item i ON mv.item_id=i.item_id
 inner join collection2item c2i ON i.item_id=c2i.item_id
 inner join collection c ON c2i.collection_id=c.collection_id
-WHERE c2i.collection_id=$coll_id AND mv.text_value != ''
+WHERE c2i.collection_id IN ($collections) AND mv.text_value != ''
 ORDER BY mv.item_id, mv.place";
 
 $res = pg_query ($conn, $sql);
