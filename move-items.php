@@ -13,7 +13,6 @@ $oldDb = trim($argv[1]);
 $newDb = trim($argv[2]);
 $commId = (int) trim($argv[3]);
 
-$policies = array();
 $out = array();
 $last_out = array();
 $second_out = array();
@@ -265,13 +264,9 @@ while ($row = pg_fetch_row ($res)) {
   $last_out[] = $line;
 }
 
-// write the policies to a path
-file_put_contents ("/tmp/policies-for-community-$commId.txt", $policies);
-
 // write the files to a path
 file_put_contents ("/tmp/files-for-community-$commId.txt", implode("\n", $file_path));
 
-die();
 foreach ($items AS $id) {
   $sql2 = "SELECT * FROM handle WHERE resource_id=$id AND resource_type_id=" . ITEM;
   $res2 = pg_query ($old, $sql2);
@@ -281,24 +276,30 @@ foreach ($items AS $id) {
 }
 
 foreach ($out AS $line) {
+  $line = str_replace ("''", 'null', $line);
+
   $ret = pg_query ($new, $line);
 
   if (!$ret) {
     print $line . "\n";
-    exit(1);
+    // exit(1);
   }
 }
 
 foreach ($second_out AS $line) {
+  $line = str_replace ("''", 'null', $line);
+
   $ret = pg_query ($new, $line);
 
   if (!$ret) {
     print $line . "\n";
-    exit(1);
+    // exit(1);
   }
 }
 
 foreach ($last_out AS $line) {
+  $line = str_replace ("''", 'null', $line);
+
   $ret = pg_query ($new, $line);
 
   if (!$ret) {
