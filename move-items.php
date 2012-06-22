@@ -271,6 +271,7 @@ foreach ($items AS $id) {
   $sql2 = "SELECT * FROM handle WHERE resource_id=$id AND resource_type_id=" . ITEM;
   $res2 = pg_query ($old, $sql2);
   $row2 = pg_fetch_object($res2);
+  if (!$row2) continue;
 
   $out[] = "INSERT INTO handle (handle_id, handle, resource_type_id, resource_id) VALUES ($row2->handle_id, '$row2->handle', $row2->resource_type_id, $row2->resource_id);";
 }
