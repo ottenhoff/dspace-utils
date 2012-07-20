@@ -1,14 +1,14 @@
 #!/usr/bin/php
 <?php
 
-if (count($argv) !== 4) {
-  exit("Bad number of arguments. Please supply database string, collection id, DSpace asset path, destination path\n\n");
+if (count($argv) !== 5) {
+  exit("Bad number of arguments. Please supply database string, collection id, community id, destination CSV\n\n");
 }
-
 
 $connString = trim($argv[1]);
 $coll_id = (int) $argv[2];
-$dest_csv = trim($argv[3]);
+$comm_id = (int) $argv[3];
+$dest_csv = trim($argv[4]);
 
 $conn = pg_connect ($connString);
 
@@ -24,7 +24,7 @@ inner join metadatafieldregistry mf ON mv.metadata_field_id=mf.metadata_field_id
 inner join item i ON mv.item_id=i.item_id
 inner join collection2item c2i ON i.item_id=c2i.item_id
 inner join collection c ON c2i.collection_id=c.collection_id
-WHERE c2i.collection_id=$coll_id AND mv.text_value != ''
+WHERE (c2i.collection_id=$coll_id OR c2i.collection_id IN (SELECT collection_id FROM community2collection WHERE community_id=$comm_id)) AND mv.text_value != ''
 ORDER BY mv.item_id, mv.place";
 
 $res = pg_query ($conn, $sql);
