@@ -6,7 +6,6 @@ if (count($argv) !== 4) {
   exit (1);
 }
 
-
 $connString = trim($argv[1]);
 $com_id = (int) $argv[2];
 $group_id = (int) $argv[3];
@@ -33,9 +32,7 @@ while ($row = pg_fetch_object ($res)) {
       $ret = pg_query ($conn, "UPDATE resourcepolicy SET epersongroup_id=$group_id WHERE policy_id=$policy_id");
       print "Update resourcepolicy ON $item_id :: $ret \n";
     }
-
   }
-
 
   // get the bundles
   $res3 = pg_query ($conn, "SELECT bundle_id FROM item2bundle WHERE item_id=$item_id");
