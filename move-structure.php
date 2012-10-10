@@ -66,6 +66,8 @@ while ($row = pg_fetch_row ($res)) {
 
   // logo bitsream id
   $row[4] = null;
+  // community admin
+  $row[7] = null;
 
   foreach ($row AS $r) {
     $z[] = pg_escape_string ($new, $r);
