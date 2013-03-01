@@ -42,29 +42,29 @@ $columns = array();
 $count = 0;
 
 while (($data = fgetcsv($handle, 10000, ",")) !== FALSE) {
-  sleep(1);
 
 	if($count == 0) {
 		$columns = $data; // assign the column names
 	}
 	else {
 		$arr = array();
+		$acArr = array();
 		$cmdArr = array();
 		$fileNames = array();
 		
 		$cnt = count($data);
 
-		$commands = array('collection id', 'collection', 'item owner', 'file location', 'file', 'pdf', 'identifier');
+		$commands = array('collection id', 'collection', 'item owner', 'file location', 'file', 'filename', 'pdf', 'identifier');
 
 		for($z = 0; $z < $cnt; $z++) {
 			// clean up the user's column name
 			$columns[$z] = strtolower(trim(str_replace("*","",$columns[$z])));
 
 			if(empty($data[$z])) {
-				
-			} 
+
+			}
 			elseif(in_array(trim(strtolower($columns[$z])), $commands)) {
-				
+
 				switch($columns[$z]) {
 
 					case "item owner":
@@ -72,14 +72,21 @@ while (($data = fgetcsv($handle, 10000, ",")) !== FALSE) {
 						break;
 
 					case "collection id":
-					case "collection":
-						if (!isset($cmdArr['coll'])) { // do not overwrite previous 
-							$cmdArr['coll'] = $data[$z];
+          case "collection":
+            if (!isset($cmdArr['coll'])) { // do not overwrite previous 
+              $tmp = $data[$z];
+              if (strpos($tmp, "|") !== FALSE) {
+                $cmdArr['coll'] = substr ($tmp, 0, strpos ($tmp, "|"));
+              }
+              else {
+                $cmdArr['coll'] = $data[$z];
+              }
 						}
 						break;
 
 					case "file location":
 					case "identifier":
+					case "filename":
 					case "file":
 					case "pdf":
 						$fileNames[] = trim($data[$z]);
@@ -89,13 +96,59 @@ while (($data = fgetcsv($handle, 10000, ",")) !== FALSE) {
 						break;
 
 				}
+			}
+			elseif (strpos($columns[$z], "ac.") === 0) {
+				$ac = array();
 
+				if(eregi('.', $columns[$z])) { // we have a special AC element
+
+					$tmpArr = explode('.', $columns[$z]);
+
+					if (trim($tmpArr[0]) == 'ac') {
+						$ac['element'] = trim($tmpArr[1]);
+
+						if(isset($tmpArr[2]) && trim($tmpArr[2]) != '') {
+							$ac['qualifier'] = trim($tmpArr[2]);
+						}
+						else {
+							$ac['qualifier'] = 'none';
+						}
+					
+					}
+					else {
+						$ac['element'] = strtolower(trim($tmpArr[0]));
+
+						if(isset($tmpArr[1]) && trim($tmpArr[1]) != '') {
+							$ac['qualifier'] = strtolower(trim($tmpArr[1]));
+						}
+						else {
+							$ac['qualifier'] = 'none';
+						}
+					}
+				}
+
+				$the_val = trim($data[$z]);
+				$strlen  = strlen($the_val);
+				if ( substr($the_val, ($strlen-1),1) == ";") {
+					$the_val = substr($the_val, 0, ($strlen-1));
+        }
+
+        // check if they are trying to do multiple values separated by pipes
+        if (strpos($the_val, "||") !== FALSE) {
+          $tmp = explode ("||", $the_val);
+          foreach ($tmp AS $tt) {
+            $acArr[] = array('_content' => $the_val, '_attributes' => $ac);
+          }
+        }
+        else {
+          $acArr[] = array('_content' => $the_val, '_attributes' => $ac);
+        }
 			}
 			else {
-			
 				$dc = array();
 
-				if(eregi('.', $columns[$z])) { // we have a DC qualifier
+        // we have a DC qualifier
+				if(eregi('.', $columns[$z])) {
 
 					$tmpArr = explode('.', $columns[$z]);
 
@@ -126,16 +179,34 @@ while (($data = fgetcsv($handle, 10000, ",")) !== FALSE) {
 				$strlen  = strlen($the_val);
 				if ( substr($the_val, ($strlen-1),1) == ";") {
 					$the_val = substr($the_val, 0, ($strlen-1));
-				}
+        }
 
-				$arr[] = array('_content' => $the_val, '_attributes' => $dc);
+        // skip columns labeled ignore
+        if (empty($dc['element']) || $dc['element'] == 'ignore') {
+          continue;
+        }
 
+        // skip empty dates
+        if ($the_val == '0000-00-00') {
+          continue;
+        }
+
+        // split up on pipe character
+        if (strpos($the_val, "||") !== FALSE) {
+          $tmp = explode ("||", $the_val);
+          foreach ($tmp AS $tt) {
+            $arr[] = array('_content' => $tt, '_attributes' => $dc);
+          }
+        }
+        else {
+          $arr[] = array('_content' => $the_val, '_attributes' => $dc);
+        }
 			}
 		}
 
 		$dc_xml = serializeRow($arr);
-	
-		$contents = createContentsFile($fileNames);
+
+		$ac_xml = serializeRow($acArr, "ac");
 
 		$destination_dir = $dir;
 		$command_dir = $dir;
@@ -155,22 +226,38 @@ while (($data = fgetcsv($handle, 10000, ",")) !== FALSE) {
 			if (!is_dir($destination_dir)) {
 				mkdir ($destination_dir);
 			}
-		}
+    }
+    elseif (!empty($cmdArr['coll'])) {
+			$destination_dir .= "/" . $cmdArr['coll'];
+			$command_dir .= "/" . $cmdArr['coll'];
+
+			if (!is_dir($destination_dir)) {
+				mkdir ($destination_dir);
+			}
+    }
+
 		$destination_dir .= "/" . $count;
 
 		mkdir($destination_dir);
 
 		file_put_contents($destination_dir . "/dublin_core.xml", $dc_xml);
+
+    if (!empty($ac_xml)) {
+      file_put_contents ($destination_dir . "/metadata_ac.xml", $ac_xml);
+    }
+
+    // moveFiles may modify the names of the files
+		$fileNames = moveFilesToImportDir($fileNames, $assets, $destination_dir);
+
+    // now can create the contents file
+		$contents = createContentsFile($fileNames);
 		file_put_contents($destination_dir . "/contents", $contents);
 
-		moveFilesToImportDir($fileNames, $assets, $destination_dir);
-
-		$command = createCommand($cmdArr, $command_dir) . "\n";
+		$command = createCommand($cmdArr, $command_dir);
 		$commandsToRun[md5($command)] = $command;
 	}
 
 
-	sleep(1);
   $count++;
 }
 
@@ -189,7 +276,8 @@ if (count($badFiles) > 0) {
 
 function moveFilesToImportDir($files, $assetDir, $dir) {
 	global $err, $badFiles;
-	
+
+  $filesToReturn = array();
 	foreach($files AS $filename) {
 		if(!file_exists($assetDir . "/" . $filename)) {
 
@@ -201,14 +289,51 @@ function moveFilesToImportDir($files, $assetDir, $dir) {
 
       // try adding pdf to end of filename
       if(!file_exists($assetDir . "/" . $filename)) {
-          $filename .= '.pdf';
+          $filename = str_replace ('  ', ' ', $filename);
       }
 
       if(!file_exists($assetDir . "/" . $filename)) {
-		$err .= "Bad file: " . $assetDir . "/" . $filename . "\n";
+          $filename = str_replace ('version ', 'exam version ', $filename);
+      }
+
+      if(!file_exists($assetDir . "/" . $filename)) {
+          $filename = str_replace ('memo.pdf', 'exam memo.pdf', $filename);
+      }
+      if(!file_exists($assetDir . "/" . $filename)) {
+          $filename = str_replace ('commentary.pdf', 'exam commentary.pdf', $filename);
+      }
+
+      if(!file_exists($assetDir . "/" . $filename)) {
+          $filename = str_replace ('Creditors', "Creditor's", $filename);
+      }
+
+      if(!file_exists($assetDir . "/" . $filename)) {
+          $filename = str_replace ('- .pdf', '- exam.pdf', $filename);
+      }
+
+      if(!file_exists($assetDir . "/" . $filename)) {
+          $filename = str_replace ('with answers', 'exam with answers', $filename);
+      }
+
+      if(!file_exists($assetDir . "/" . $filename)) {
+          $filename = str_replace ('2011 Fall', '2011 Fall - Memo', $filename);
+      }
+
+      // try adding pdf to end of filename
+      if(!file_exists($assetDir . "/" . $filename)) {
+          $filename .= '.pdf';
+      }
+
+      // final strip of .pdf.pdf
+      if(!file_exists($assetDir . "/" . $filename)) {
+        $filename = str_replace ('.pdf.pdf', '.pdf', $filename);
+      }
+
+      if(!file_exists($assetDir . "/" . $filename)) {
+		    $err .= "Bad file: " . $assetDir . "/" . $filename . "\n";
         echo  "Bad file: " . $assetDir . "/" . $filename . "\n";
         $badFiles[] = $filename;
-		continue;
+		    continue;
       }
 		}
 
@@ -226,9 +351,11 @@ function moveFilesToImportDir($files, $assetDir, $dir) {
 		if(!copy($assetDir . "/" . $filename, $dir . "/" . $targetFile)) {
 			die("bad copy: " . $assetDir . "/" . $filename . " to " . $dir . "/" . $targetFile);
 		}
+
+    $filesToReturn[] = $filename;
 	}
 
-	return true;
+	return $filesToReturn;
 }
 
 
@@ -258,21 +385,25 @@ function createCommand($arr, $dir) {
 	if (empty($arr['owner'])) {
 		$arr['owner'] = 'user@example.edu';
   }
-	return "bin/import -a -e " . $arr['owner'] . " -c " . $arr['coll'] . " -s " . $dir . " -m " . $dir . "/import.map";
+	return "bin/dspace import -a -e " . $arr['owner'] . " -c " . $arr['coll'] . " -s " . $dir . " -m " . $dir . "/import.map";
 }
 
-function serializeRow($arr) {
+function serializeRow($arr, $schema="dc") {
 	$serializer_options = array (
    'addDecl' => TRUE,
    'encoding' => 'utf-8',
    'indent' => "\t",
    'rootName' => 'dublin_core',
-	 'rootAttributes' => array('schema' => 'dc'),
+	 'rootAttributes' => array('schema' => $schema),
    'defaultTagName' => 'dcvalue',
    'scalarAsAttributes' => FALSE,
    'attributesArray' => '_attributes',
    'contentName' => '_content',
   );
+
+  if (empty($arr) || count($arr) < 1) {
+      return null;
+  }
 
   $serializer = &new XML_Serializer($serializer_options);
   $serializer->setOption(XML_SERIALIZER_OPTION_CDATA_SECTIONS, true);
